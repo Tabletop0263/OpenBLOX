@@ -19,49 +19,48 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Verify Wii toolchain
+      - name: Configure devkitPro
         run: |
+          export DEVKITPRO=/opt/devkitpro
+          export DEVKITPPC=/opt/devkitpro/devkitPPC
+          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$PATH"
+
           echo "DEVKITPRO=$DEVKITPRO"
           echo "DEVKITPPC=$DEVKITPPC"
-          which powerpc-eabi-gcc
-          powerpc-eabi-gcc --version
-          which make
 
-      - name: Build OpenBLOX
+          test -x "$DEVKITPPC/bin/powerpc-eabi-gcc"
+          "$DEVKITPPC/bin/powerpc-eabi-gcc" --version
+
+      - name: Build OpenBLOX Wii
         working-directory: C_Engine
         run: |
+          export DEVKITPRO=/opt/devkitpro
+          export DEVKITPPC=/opt/devkitpro/devkitPPC
+          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$PATH"
+
+          . "$DEVKITPRO/devkitppc.sh"
+
           make wii-clean || true
           make wii
 
-      - name: Locate Wii executable
+      - name: Find Wii executable
         run: |
-          echo "Searching for DOL files..."
-          find . -type f -name "*.dol" -print
+          find C_Engine -type f \
+            \( -name "*.dol" -o -name "*.elf" \) \
+            -print
 
-      - name: Package Wii Homebrew
+      - name: Package
         run: |
           mkdir -p OpenBLOX-Wii/apps/OpenBLOX
 
-          DOL=$(find C_Engine -type f -name "*.dol" | head -n 1)
+          DOL="$(find C_Engine -type f -name '*.dol' | head -n 1)"
 
           if [ -z "$DOL" ]; then
-            echo "::error::No Wii .dol was produced"
+            echo "::error::No .dol file was produced."
             exit 1
           fi
 
-          echo "Found: $DOL"
           cp "$DOL" OpenBLOX-Wii/apps/OpenBLOX/boot.dol
-
-          cat > OpenBLOX-Wii/apps/OpenBLOX/meta.xml <<'EOF'
-          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-          <app version="1">
-            <name>OpenBLOX</name>
-            <coder>Tabletop0263</coder>
-            <version>1.0</version>
-            <short_description>OpenBLOX Wii</short_description>
-            <long_description>OpenBLOX Wii homebrew.</long_description>
-          </app>
-          EOF
 
       - name: Upload Wii build
         uses: actions/upload-artifact@v4
