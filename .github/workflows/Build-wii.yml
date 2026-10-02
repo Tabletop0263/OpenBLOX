@@ -19,38 +19,37 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Wii development packages
-        run: |
-          pacman -Sy --noconfirm
-          pacman -S --needed --noconfirm wii-dev
-
-      - name: Show toolchain
+      - name: Verify Wii toolchain
         run: |
           echo "DEVKITPRO=$DEVKITPRO"
           echo "DEVKITPPC=$DEVKITPPC"
+          which powerpc-eabi-gcc
           powerpc-eabi-gcc --version
+          which make
 
-      - name: Build Wii
+      - name: Build OpenBLOX
         working-directory: C_Engine
         run: |
           make wii-clean || true
           make wii
 
-      - name: Find DOL
+      - name: Locate Wii executable
         run: |
+          echo "Searching for DOL files..."
           find . -type f -name "*.dol" -print
 
-      - name: Prepare Homebrew package
+      - name: Package Wii Homebrew
         run: |
           mkdir -p OpenBLOX-Wii/apps/OpenBLOX
 
-          DOL="$(find C_Engine -type f -name '*.dol' | head -n 1)"
+          DOL=$(find C_Engine -type f -name "*.dol" | head -n 1)
 
           if [ -z "$DOL" ]; then
-            echo "ERROR: No .dol file was produced"
+            echo "::error::No Wii .dol was produced"
             exit 1
           fi
 
+          echo "Found: $DOL"
           cp "$DOL" OpenBLOX-Wii/apps/OpenBLOX/boot.dol
 
           cat > OpenBLOX-Wii/apps/OpenBLOX/meta.xml <<'EOF'
@@ -69,3 +68,4 @@ jobs:
         with:
           name: OpenBLOX-Wii
           path: OpenBLOX-Wii/
+          if-no-files-found: error
